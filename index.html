@@ -2,42 +2,329 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>落袋收益</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="落袋收益">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" sizes="180x180" href="https://cook1ea.github.io/rakubukuro/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-512.png">
-<meta name="theme-color" content="#16244a">
-<script>
-  // 从主屏幕图标启动时(standalone)直接跳转;在 Safari 里打开时停留,方便「添加到主屏幕」
-  var APP = 'https://script.google.com/macros/s/AKfycbya9LuIJ8CFrLiXB8ia7Q_KKTYFhLbuLyB7PwKTI0QxBWnY-aOIblZvWD0PaSn9j6f2_g/exec';
-  var standalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-  if (standalone) location.replace(APP);
-</script>
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111418" media="(prefers-color-scheme: dark)">
 <style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #16244a; color: #e9edf7;
-    font: 16px/1.6 -apple-system, "Hiragino Sans", sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
-  img { width: 110px; border-radius: 24px; display: block; margin: 0 auto 16px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
-  h1 { font-size: 22px; margin: 0 0 18px; color: #f0be50; }
-  .steps { background: rgba(255,255,255,.07); border-radius: 14px; padding: 14px 18px; text-align: left; margin-bottom: 20px; }
-  a.btn { display: inline-block; background: #f0be50; color: #16244a; text-decoration: none; font-weight: 600;
-    padding: 12px 28px; border-radius: 12px; }
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #1d2330; --muted: #6b7280; --line: #e5e7eb;
+    --div: #2f6fde; --gain: #e08a1e; --accent: #2f6fde; --danger: #d14343;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111418; --card: #1a1e24; --text: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --div: #5b8ff0; --gain: #f0a540; --accent: #5b8ff0; --danger: #ef6b6b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, "Segoe UI", "Hiragino Sans", "Microsoft YaHei", sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 16px;
+    padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .keybox { max-width: 360px; margin: 18vh auto 0; text-align: center; }
+  .keybox img { width: 84px; border-radius: 20px; margin-bottom: 12px; }
+  .keybox p { color: var(--muted); font-size: 14px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  h1 { font-size: 20px; margin: 0; }
+  select, input, button { font: inherit; color: inherit; }
+  select, input { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%;
+    font-size: 16px; min-height: 42px; }
+  input[type=date] { -webkit-appearance: none; appearance: none; display: block; text-align: left; }
+  input::-webkit-date-and-time-value { text-align: left; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  @media (min-width: 600px) { .kpis { grid-template-columns: repeat(4, 1fr); } }
+  .kpi .label { color: var(--muted); font-size: 13px; }
+  .kpi .val { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+  h2 { font-size: 15px; margin: 0 0 10px; display: flex; justify-content: space-between; align-items: center; }
+  .legend { font-size: 12px; color: var(--muted); font-weight: normal; }
+  svg text { fill: var(--muted); font-size: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid > * { min-width: 0; }
+  .grid .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; background: var(--card); padding: 8px; min-height: 40px; cursor: pointer; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 3px; min-height: 18px; }
+  .hint:empty { min-height: 0; margin: 0; }
+  input::placeholder { color: var(--muted); opacity: .7; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn { border: 0; border-radius: 8px; padding: 9px 16px; cursor: pointer; background: var(--accent); color: #fff; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+  .btn.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); margin-left: auto; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .filters { display: grid; grid-template-columns: 1fr 110px; gap: 8px; margin-bottom: 8px; }
+  .item { border-top: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 10px 2px; align-items: center; }
+  .row .n { overflow-wrap: anywhere; line-height: 1.35; }
+  .row .meta { font-size: 12px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    font-variant-numeric: tabular-nums; }
+  .row .a { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; }
+  .detail { display: none; font-size: 13px; color: var(--muted); padding: 2px 2px 12px; }
+  .item.open .detail { display: block; }
+  .item.open .row .a::after { content: ' ▴'; color: var(--muted); }
+  .detail dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0 0 10px; }
+  .detail dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+  .detail .btn { padding: 6px 14px; font-size: 14px; }
+  .tag { font-size: 11px; padding: 0 6px; border-radius: 4px; color: #fff; line-height: 18px; }
+  .tag.分红 { background: var(--div); } .tag.差益 { background: var(--gain); }
+  .sub { font-size: 11px; color: var(--muted); }
+  .more { text-align: center; padding: 10px; color: var(--accent); cursor: pointer; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #222; color: #fff;
+    padding: 9px 16px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: .95; }
+  .loading { color: var(--muted); padding: 30px; text-align: center; }
 </style>
 </head>
 <body>
-  <div>
-    <img src="icon-180.png?v=2" alt="">
+<div class="wrap">
+  <header>
     <h1>落袋收益</h1>
-    <div class="steps">
-      添加到主屏幕:<br>
-      1. 点 Safari 底部的 <b>分享</b> 按钮<br>
-      2. 选 <b>添加到主屏幕</b><br>
-      之后从主屏幕图标打开会直接进入。
+    <div style="width:110px"><select id="year"></select></div>
+  </header>
+
+  <div id="app" class="loading">加载中…</div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const S = { data: null, year: null, editing: null, type: '分红', shown: 30 };
+const $ = id => document.getElementById(id);
+const fmt = n => n == null ? '—' : Math.round(n).toLocaleString('ja-JP');
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const keyOf = r => [r.date, r.name, r.amountInput].join('|');
+
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+const API = 'https://script.google.com/macros/s/AKfycbya9LuIJ8CFrLiXB8ia7Q_KKTYFhLbuLyB7PwKTI0QxBWnY-aOIblZvWD0PaSn9j6f2_g/exec';
+const ACTION = { webGetData: 'getData', webSaveRecord: 'save', webDeleteRecord: 'remove', webGetRate: 'rate', webLookupName: 'lookup' };
+const store = {
+  get() { try { return localStorage.getItem('rk_key') || ''; } catch (e) { return ''; } },
+  set(v) { try { v ? localStorage.setItem('rk_key', v) : localStorage.removeItem('rk_key'); } catch (e) {} },
+};
+async function call(fn, ...args) {
+  const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ key: store.get(), action: ACTION[fn], args }) });
+  const j = await res.json();
+  if (j.auth === false) { store.set(''); askKey('密钥不对或已更换,请重新输入'); throw new Error('密钥不对'); }
+  if (!j.ok) throw new Error(j.error || '出错了');
+  return j.data;
+}
+
+function askKey(msg) {
+  document.querySelector('.wrap').innerHTML = `
+    <div class="keybox"><img src="icon-180.png" alt=""><h1>落袋收益</h1>
+      <p>${msg || '首次使用请输入设备密钥(只需一次)'}</p>
+      <input id="keyIn" type="password" autocomplete="current-password" placeholder="设备密钥" style="margin:10px 0">
+      <button class="btn" style="width:100%" onclick="saveKey()">进入</button></div>`;
+}
+function saveKey() {
+  const v = document.getElementById('keyIn').value.trim();
+  if (!v) return;
+  store.set(v); location.reload();
+}
+
+async function load() {
+  S.data = await call('webGetData');
+  const years = [...new Set(S.data.records.map(r => +r.date.slice(0, 4)))].sort((a, b) => b - a);
+  const cur = new Date().getFullYear();
+  if (!years.includes(cur)) years.unshift(cur);
+  if (!S.year) S.year = cur;
+  $('year').innerHTML = years.map(y => `<option ${y === S.year ? 'selected' : ''}>${y}</option>`).join('');
+  render();
+}
+$('year').onchange = e => { S.year = +e.target.value; S.shown = 30; render(); };
+
+function render() {
+  if (!$('form')) $('app').outerHTML = shell();
+  renderStats(); renderList();
+  $('names').innerHTML = S.data.names.map(n => `<option value="${esc(n.name)}">${n.code ? esc(n.code) : ''}</option>`).join('');
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function shell() {
+  return `
+  <div class="card kpis" id="kpis"></div>
+  <div class="card"><h2>月度 <span class="legend"><span class="dot" style="background:var(--div)"></span>分红
+    &nbsp;<span class="dot" style="background:var(--gain)"></span>差益</span></h2><div id="chart"></div></div>
+  <div class="card" id="form">
+    <h2 id="formTitle">手动记一笔</h2>
+    <div class="grid">
+      <div><label>日期</label><input type="date" id="f_date"></div>
+      <div><label>类型</label><div class="seg" id="f_type">
+        <button type="button" data-v="分红">分红</button><button type="button" data-v="差益">差益</button></div></div>
+      <div><label>代码(可空)</label><input id="f_code" autocomplete="off" inputmode="text" placeholder="如 7272"></div>
+      <div><label>銘柄</label><input id="f_name" list="names" autocomplete="off" placeholder="选择或输入"></div>
+      <div class="full hint" id="nameHint" style="margin-top:-6px"></div>
+      <div><label>金额</label><input id="f_amount" inputmode="decimal" placeholder="如 12345"><div class="hint">可写算式 =1000+234</div></div>
+      <div><label>币种</label><select id="f_cur"><option>JPY</option><option>CNY</option><option>USD</option><option>HKD</option></select></div>
+      <div id="rateBox" class="full" style="display:none"><label>汇率(1 外币 → 日元,自动查当天,可改)</label>
+        <input id="f_rate" inputmode="decimal"><div class="hint" id="rateHint"></div></div>
+      <div class="full"><label>备注</label><input id="f_note"></div>
     </div>
-    <a class="btn" href="https://script.google.com/macros/s/AKfycbya9LuIJ8CFrLiXB8ia7Q_KKTYFhLbuLyB7PwKTI0QxBWnY-aOIblZvWD0PaSn9j6f2_g/exec">打开落袋收益</a>
+    <div class="actions">
+      <button class="btn" id="saveBtn" onclick="save()">保存</button>
+      <button class="btn ghost" id="cancelBtn" onclick="resetForm()" style="display:none">取消</button>
+      <button class="btn danger" id="delBtn" onclick="del()" style="display:none">删除</button>
+    </div>
   </div>
+  <div class="card"><h2>记录 <span class="legend" id="count"></span></h2>
+    <div class="filters"><input id="q" placeholder="搜索銘柄 / 备注" oninput="S.shown=30;renderList()">
+      <select id="ft" onchange="S.shown=30;renderList()"><option value="">全部</option><option>分红</option><option>差益</option></select></div>
+    <div id="list"></div></div>
+  <datalist id="names"></datalist>`;
+}
+
+function renderStats() {
+  const rs = S.data.records.filter(r => r.date.startsWith(S.year + '-'));
+  const sum = t => rs.filter(r => !t || r.type === t).reduce((a, r) => a + (r.jpy || 0), 0);
+  const thisMonth = today().slice(0, 7);
+  const m = rs.filter(r => r.date.startsWith(thisMonth)).reduce((a, r) => a + (r.jpy || 0), 0);
+  $('kpis').innerHTML = [
+    ['分红', sum('分红'), 'var(--div)'], ['差益', sum('差益'), 'var(--gain)'], ['合计', sum(''), ''],
+    [S.year == thisMonth.slice(0, 4) ? '本月' : '月均', S.year == thisMonth.slice(0, 4) ? m : sum('') / 12, ''],
+  ].map(([l, v, c]) => `<div class="kpi"><div class="label">${c ? `<span class="dot" style="background:${c}"></span>` : ''}${l}</div><div class="val">¥${fmt(v)}</div></div>`).join('');
+
+  const mon = Array.from({ length: 12 }, () => ({ d: 0, g: 0 }));
+  rs.forEach(r => { const i = +r.date.slice(5, 7) - 1; if (r.type === '分红') mon[i].d += r.jpy || 0; else mon[i].g += Math.max(0, r.jpy || 0); });
+  const max = Math.max(1, ...mon.map(x => x.d + x.g));
+  const W = 700, H = 170, pad = 22, bw = (W - 10) / 12;
+  const y = v => (H - pad) * v / max;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="月度收益">`;
+  mon.forEach((x, i) => {
+    const X = 5 + i * bw + bw * 0.18, w = bw * 0.64, hd = y(x.d), hg = y(x.g);
+    svg += `<rect x="${X}" y="${H - pad - hd}" width="${w}" height="${hd}" fill="var(--div)" rx="2"><title>${i + 1}月 分红 ¥${fmt(x.d)}</title></rect>`;
+    svg += `<rect x="${X}" y="${H - pad - hd - hg}" width="${w}" height="${hg}" fill="var(--gain)" rx="2"><title>${i + 1}月 差益 ¥${fmt(x.g)}</title></rect>`;
+    svg += `<text x="${X + w / 2}" y="${H - 6}" text-anchor="middle">${i + 1}月</text>`;
+  });
+  $('chart').innerHTML = svg + '</svg>';
+}
+
+function renderList() {
+  const q = ($('q').value || '').trim().toLowerCase(), ft = $('ft').value;
+  const rs = S.data.records.filter(r => r.date.startsWith(S.year + '-'))
+    .filter(r => !ft || r.type === ft)
+    .filter(r => !q || (r.name + ' ' + r.note).toLowerCase().includes(q))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.row - a.row);
+  $('count').textContent = `${rs.length} 条`;
+  $('list').innerHTML = rs.slice(0, S.shown).map(r => `
+    <div class="item ${S.open === r.row ? 'open' : ''}" data-row="${r.row}">
+      <div class="row" onclick="toggle(${r.row})">
+        <div><div class="n">${esc(r.name)}</div>
+          <div class="meta">${r.date.slice(5).replace('-', '/')} <span class="tag ${r.type}">${r.type}</span>
+            ${r.currency !== 'JPY' ? `${r.amount} ${r.currency} × ${r.rate || '?'}` : ''}</div></div>
+        <div class="a">¥${fmt(r.jpy)}</div>
+      </div>
+      <div class="detail"><dl>
+        <dt>日期</dt><dd>${r.date}</dd>
+        ${r.code ? `<dt>代码</dt><dd>${esc(r.code)}</dd>` : ''}
+        <dt>金额</dt><dd>${esc(r.amountInput)} ${r.currency}${r.currency !== 'JPY' ? ` × ${r.rate || '?'}` : ''}</dd>
+        <dt>来源</dt><dd>${r.source.startsWith('gmail:') ? '邮件自动导入' : esc(r.source || '手动')}</dd>
+        ${r.note ? `<dt>备注</dt><dd>${esc(r.note)}</dd>` : ''}
+      </dl><button class="btn ghost" onclick="edit(${r.row})">编辑</button></div>
+    </div>`).join('') + (rs.length > S.shown ? `<div class="more" onclick="S.shown+=50;renderList()">显示更多</div>` : '')
+    || '<div class="loading">没有记录</div>';
+}
+
+function toggle(row) { S.open = S.open === row ? null : row; renderList(); }
+
+function setType(t) { S.type = t; document.querySelectorAll('#f_type button').forEach(b => b.classList.toggle('on', b.dataset.v === t)); }
+document.addEventListener('click', e => { const b = e.target.closest('#f_type button'); if (b) setType(b.dataset.v); });
+document.addEventListener('change', e => { if (['f_cur', 'f_date'].includes(e.target.id)) onCur(); });
+
+function onCur() {
+  const cur = $('f_cur').value;
+  $('rateBox').style.display = cur === 'JPY' ? 'none' : '';
+  if (cur === 'JPY') return;
+  $('rateHint').textContent = '查询汇率中…';
+  call('webGetRate', cur, $('f_date').value || today())
+    .then(v => { if (!$('f_rate').dataset.manual) $('f_rate').value = v; $('rateHint').textContent = `Google Finance:1 ${cur} = ${v} 円`; })
+    .catch(e => $('rateHint').textContent = e.message);
+}
+
+function resetForm() {
+  S.editing = null;
+  $('formTitle').textContent = '手动记一笔';
+  $('f_date').value = today(); $('f_code').value = ''; $('f_name').value = ''; $('f_name').readOnly = false; $('nameHint').textContent = ''; $('f_amount').value = '';
+  $('f_cur').value = 'JPY'; $('f_rate').value = ''; delete $('f_rate').dataset.manual; $('f_note').value = '';
+  $('rateBox').style.display = 'none'; $('rateHint').textContent = '';
+  $('cancelBtn').style.display = 'none'; $('delBtn').style.display = 'none';
+  setType('分红');
+}
+
+function edit(row) {
+  const r = S.data.records.find(x => x.row === row); if (!r) return;
+  S.editing = r;
+  $('formTitle').textContent = '编辑记录';
+  $('f_date').value = r.date; $('f_code').value = r.code; $('f_name').value = r.name; $('f_name').readOnly = !!r.code;
+  $('nameHint').textContent = r.code ? '名称由代码决定' : ''; $('f_amount').value = r.amountInput;
+  $('f_cur').value = r.currency; $('f_rate').value = r.rate; $('f_note').value = r.note;
+  if (r.rate !== '') $('f_rate').dataset.manual = '1'; else delete $('f_rate').dataset.manual;
+  $('rateBox').style.display = r.currency === 'JPY' ? 'none' : ''; $('rateHint').textContent = r.rate === '' && r.currency !== 'JPY' ? '缺汇率,保存时会自动查当天汇率' : '';
+  setType(r.type);
+  $('cancelBtn').style.display = '';
+  const fromMail = r.source.startsWith('gmail:');
+  $('delBtn').style.display = fromMail ? 'none' : '';
+  if (fromMail) $('rateHint').textContent = '此条来自邮件自动导入(只能编辑,不能删除)';
+  $('form').scrollIntoView({ behavior: 'smooth' });
+}
+document.addEventListener('input', e => {
+  if (e.target.id === 'f_rate') e.target.dataset.manual = '1';
+  if (e.target.id === 'f_name') {             // 选了已有名称 → 带出代码
+    const hit = S.data.names.find(n => n.name === e.target.value);
+    if (hit && hit.code) { $('f_code').value = hit.code; $('f_name').readOnly = true; $('nameHint').textContent = '名称由代码决定'; }
+  }
+  if (e.target.id === 'f_code') {
+    clearTimeout(S.codeTimer);
+    const code = e.target.value.trim();
+    if (!code) { $('f_name').readOnly = false; $('nameHint').textContent = ''; return; }
+    S.codeTimer = setTimeout(() => lookupCode(code), 500);
+  }
+});
+
+async function lookupCode(code) {
+  $('nameHint').textContent = '查询名称中…';
+  try {
+    const r = await call('webLookupName', code);
+    if ($('f_code').value.trim() !== code) return;
+    if (!r) { $('nameHint').textContent = '查不到这个代码,请检查;或清空代码后手填名称'; $('f_name').readOnly = false; return; }
+    $('f_name').value = r.name; $('f_name').readOnly = true;
+    $('nameHint').textContent = r.known ? `已有:${r.name}` : `新銘柄,正式名称:${r.name}`;
+  } catch (e) { $('nameHint').textContent = e.message; }
+}
+
+async function save() {
+  const rec = {
+    date: $('f_date').value, code: $('f_code').value.trim(), name: $('f_name').value, type: S.type, amountInput: $('f_amount').value.trim(),
+    currency: $('f_cur').value, rate: $('f_cur').value === 'JPY' ? '' : $('f_rate').value.trim(), note: $('f_note').value,
+  };
+  if (S.editing) { rec.row = S.editing.row; rec.key = keyOf(S.editing); }
+  $('saveBtn').disabled = true;
+  try {
+    S.data = await call('webSaveRecord', rec);
+    S.year = +rec.date.slice(0, 4); $('year').value = S.year;
+    toast(S.editing ? '已更新' : '已保存'); resetForm(); render();
+  } catch (e) { toast(e.message); }
+  $('saveBtn').disabled = false;
+}
+
+async function del() {
+  if (!S.editing) return;
+  const b = $('delBtn');
+  if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = '确认删除?'; setTimeout(() => { b.dataset.confirm = ''; b.textContent = '删除'; }, 3000); return; }
+  b.dataset.confirm = ''; b.textContent = '删除';
+  try { S.data = await call('webDeleteRecord', S.editing.row, keyOf(S.editing)); toast('已删除'); resetForm(); render(); }
+  catch (e) { toast(e.message); }
+}
+
+if (!store.get()) askKey();
+else load().then(resetForm).catch(e => { if ($('app')) $('app').textContent = '加载失败:' + e.message; });
+</script>
 </body>
 </html>
